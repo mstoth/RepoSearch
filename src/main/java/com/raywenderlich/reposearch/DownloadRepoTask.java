@@ -2,6 +2,8 @@ package com.raywenderlich.reposearch;
 
 import android.os.AsyncTask;
 
+import org.json.JSONException;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +16,14 @@ import java.net.URL;
  */
 
 public class DownloadRepoTask extends AsyncTask<String, Void, String> {
-    // 1
+
+    DownloadCompleteListener mDownloadCompleteListener;
+
+    public DownloadRepoTask(DownloadCompleteListener downloadCompleteListener) {
+        this.mDownloadCompleteListener = downloadCompleteListener;
+    }
+
+
     @Override
     protected String doInBackground(String... params) {
         try {
@@ -24,10 +33,14 @@ public class DownloadRepoTask extends AsyncTask<String, Void, String> {
             return null;
         }    }
 
-    // 2
     @Override
     protected void onPostExecute(String result) {
-
+        try {
+            mDownloadCompleteListener.downloadComplete(Util.retrieveRepositoriesFromResponse(result));
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     private String downloadData(String urlString) throws IOException {
@@ -38,7 +51,7 @@ public class DownloadRepoTask extends AsyncTask<String, Void, String> {
             conn.setRequestMethod("GET");
             conn.connect();
             is = conn.getInputStream();
-            return null;
+            return convertToString(is);
         } finally {
             if (is != null) {
                 is.close();

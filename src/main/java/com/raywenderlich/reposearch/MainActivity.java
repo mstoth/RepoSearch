@@ -22,6 +22,7 @@
 
 package com.raywenderlich.reposearch;
 
+import android.app.DownloadManager;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -32,15 +33,76 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import android.content.DialogInterface;
 import android.support.v7.app.AlertDialog;
 
-public class MainActivity extends AppCompatActivity {
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONException;
+
+import okhttp3.OkHttpClient;
+
+public class MainActivity extends AppCompatActivity implements DownloadCompleteListener{
 
   ListFragment mListFragment;
   ProgressDialog mProgressDialog;
 
+  private void makeRequestWithVolley(String url) {
+
+    RequestQueue queue = Volley.newRequestQueue(this); // 1
+
+    StringRequest stringRequest = new StringRequest(DownloadManager.Request.Method.GET, url,
+            new com.android.volley.Response.Listener<String>() { // 2
+              @Override
+              public void onResponse(String response) {
+                try {
+                  downloadComplete(Util.retrieveRepositoriesFromResponse(response)); // 3
+                } catch (JSONException e) {
+                  e.printStackTrace();
+                }
+              }
+            }, new com.android.volley.Response.ErrorListener() {
+      @Override
+      public void onErrorResponse(VolleyError error) {
+      }
+    });
+    queue.add(stringRequest);  // 4
+
+  }
+
+  private void makeRequestWithOkHttp(String url) {
+    OkHttpClient client = new OkHttpClient();   // 1
+    okhttp3.Request request = new okhttp3.Request.Builder().url(url).build();  // 2
+
+    client.newCall(request).enqueue(new okhttp3.Callback() { // 3
+      @Override
+      public void onFailure(okhttp3.Call call, IOException e) {
+        e.printStackTrace();
+      }
+
+      @Override
+      public void onResponse(okhttp3.Call call, okhttp3.Response response)
+              throws IOException {
+        final String result = response.body().string();  // 4
+
+        MainActivity.this.runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              downloadComplete(Util.retrieveRepositoriesFromResponse(result));  // 5
+            } catch (JSONException e) {
+              e.printStackTrace();
+            }
+          }
+        });
+      }
+    });
+  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +134,14 @@ public class MainActivity extends AppCompatActivity {
       }    }
   }
 
+  @Override
+  public void downloadComplete(ArrayList<Repository> repositories) {
+    showListFragment(repositories);
+    if (mProgressDialog != null) {
+      mProgressDialog.hide();
+    }
+  }
+
   private void showListFragment(ArrayList<Repository> repositories) {
     mListFragment = ListFragment.newInstance(repositories);
     getSupportFragmentManager().beginTransaction().add(R.id.fragment_container, mListFragment).
@@ -93,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void startDownload() {
-    new DownloadRepoTask().execute("https://api.github.com/repositories");
+    new DownloadRepoTask(this).execute("https://api.github.com/repositories");
   }
 
   private boolean isNetworkConnected() {
