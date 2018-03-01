@@ -52,28 +52,6 @@ public class MainActivity extends AppCompatActivity implements DownloadCompleteL
   ListFragment mListFragment;
   ProgressDialog mProgressDialog;
 
-  private void makeRequestWithVolley(String url) {
-
-    RequestQueue queue = Volley.newRequestQueue(this); // 1
-
-    StringRequest stringRequest = new StringRequest(DownloadManager.Request.Method.GET, url,
-            new com.android.volley.Response.Listener<String>() { // 2
-              @Override
-              public void onResponse(String response) {
-                try {
-                  downloadComplete(Util.retrieveRepositoriesFromResponse(response)); // 3
-                } catch (JSONException e) {
-                  e.printStackTrace();
-                }
-              }
-            }, new com.android.volley.Response.ErrorListener() {
-      @Override
-      public void onErrorResponse(VolleyError error) {
-      }
-    });
-    queue.add(stringRequest);  // 4
-
-  }
 
   private void makeRequestWithOkHttp(String url) {
     OkHttpClient client = new OkHttpClient();   // 1
